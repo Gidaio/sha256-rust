@@ -1,7 +1,7 @@
 fn main() {
     let test_string = String::from("The quick brown fox jumps over the lazy dog.");
 
-    let _initial_hash_values: [u32; 8] = [
+    let initial_hash_values: [u32; 8] = [
         0x6a09e667,
         0xbb67ae85,
         0x3c6ef372,
@@ -60,4 +60,59 @@ fn main() {
     assert!(string_bytes.len() % 64 == 0);
 
     println!("We're good!");
+
+    // Assume one chunk for now.
+    let mut message_schedule_array: [u32; 64] = [0; 64];
+    // Copy the string bytes into the first quarter of the array.
+    for i in 0 .. 16 {
+        let word: u32 =
+            (string_bytes[i] as u32) << 24 |
+            (string_bytes[i + 1] as u32) << 16 |
+            (string_bytes[i + 2] as u32) << 8 |
+            (string_bytes[i + 3] as u32);
+        message_schedule_array[i] = word;
+    }
+
+    // Extend the first quarter of the array to fill the rest.
+    for i in 16 .. 64 {
+        let s0 = message_schedule_array[i - 15].rotate_right(7)
+            ^ message_schedule_array[i - 15].rotate_right(18)
+            ^ (message_schedule_array[i - 15] >> 3);
+        let s1 = message_schedule_array[i - 2].rotate_right(17)
+            ^ message_schedule_array[i - 2].rotate_right(19)
+            ^ (message_schedule_array[i - 2] >> 10);
+        message_schedule_array[i] = message_schedule_array[i - 16] + s0
+            + message_schedule_array[i - 7] + s1;
+    }
+
+    let mut a = initial_hash_values[0];
+    let mut b = initial_hash_values[1];
+    let mut c = initial_hash_values[2];
+    let mut d = initial_hash_values[3];
+    let mut e = initial_hash_values[4];
+    let mut f = initial_hash_values[5];
+    let mut g = initial_hash_values[6];
+    let mut h = initial_hash_values[7];
+
+    // Do the compression!
+    for i in 0 .. 64 {
+        let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+        let ch = (e & f) ^ ((!e) & g);
+
+        let temp1 = h + s1 + ch + _round_constants[i] + message_schedule_array[i];
+        let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+        let maj = (a & b) ^ (a & c) ^ (b & c);
+        let temp2 = s0 + maj;
+
+        h = g;
+        g = f;
+        f = e;
+        e = d + temp1;
+        d = c;
+        c = b;
+        b = a;
+        a = temp1 + temp2;
+    }
+
+
 }

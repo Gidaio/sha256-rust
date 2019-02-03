@@ -12,7 +12,7 @@ fn main() {
         0x5be0cd19
     ];
 
-    let _round_constants: [u32; 64] = [
+    let round_constants: [u32; 64] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
         0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
         0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -65,24 +65,37 @@ fn main() {
     let mut message_schedule_array: [u32; 64] = [0; 64];
     // Copy the string bytes into the first quarter of the array.
     for i in 0 .. 16 {
+        println!("Copying string {}", i);
+
         let word: u32 =
             (string_bytes[i] as u32) << 24 |
             (string_bytes[i + 1] as u32) << 16 |
             (string_bytes[i + 2] as u32) << 8 |
             (string_bytes[i + 3] as u32);
+
+        println!("Generated word {:x}", word);
+
         message_schedule_array[i] = word;
     }
 
     // Extend the first quarter of the array to fill the rest.
     for i in 16 .. 64 {
+        println!("Extending into {}", i);
+
         let s0 = message_schedule_array[i - 15].rotate_right(7)
             ^ message_schedule_array[i - 15].rotate_right(18)
             ^ (message_schedule_array[i - 15] >> 3);
+
         let s1 = message_schedule_array[i - 2].rotate_right(17)
             ^ message_schedule_array[i - 2].rotate_right(19)
             ^ (message_schedule_array[i - 2] >> 10);
-        message_schedule_array[i] = message_schedule_array[i - 16] + s0
-            + message_schedule_array[i - 7] + s1;
+
+        message_schedule_array[i] = message_schedule_array[i - 16]
+            .wrapping_add(s0)
+            .wrapping_add(message_schedule_array[i - 7])
+            .wrapping_add(s1);
+
+        println!("Generated {:x}", message_schedule_array[i]);
     }
 
     let mut a = initial_hash_values[0];
@@ -96,23 +109,27 @@ fn main() {
 
     // Do the compression!
     for i in 0 .. 64 {
+        println!("Doing round {}...", i);
+
         let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
         let ch = (e & f) ^ ((!e) & g);
 
-        let temp1 = h + s1 + ch + _round_constants[i] + message_schedule_array[i];
+        let temp1 = h.wrapping_add(s1).wrapping_add(ch)
+            .wrapping_add(round_constants[i]).wrapping_add(message_schedule_array[i]);
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
         let maj = (a & b) ^ (a & c) ^ (b & c);
-        let temp2 = s0 + maj;
+        let temp2 = s0.wrapping_add(maj);
 
         h = g;
         g = f;
         f = e;
-        e = d + temp1;
+        e = d.wrapping_add(temp1);
         d = c;
         c = b;
         b = a;
-        a = temp1 + temp2;
+        a = temp1.wrapping_add(temp2);
     }
 
-
+    println!("{:x}{:x}{:x}{:x}{:x}{:x}{:x}{:x}",
+        a.to_be(), b.to_be(), c.to_be(), d.to_be(), e.to_be(), f.to_be(), g.to_be(), h.to_be());
 }

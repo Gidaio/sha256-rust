@@ -23,10 +23,8 @@ fn main() {
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     ];
 
-    let string_length: u64 = test_string.len() as u64;
+    let string_length: u64 = (test_string.len() * 8) as u64;
     let mut string_bytes = test_string.into_bytes();
-
-    println!("Original string length: {}", string_bytes.len());
 
     // Figure out how many zeroes are needed.
     let mut zero_bytes = 0;
@@ -34,15 +32,11 @@ fn main() {
         zero_bytes += 1;
     }
 
-    println!("Adding {} zero bytes.", zero_bytes);
-
     string_bytes.push(0b10000000);
 
     for _ in 0 .. zero_bytes {
         string_bytes.push(0b00000000)
     }
-
-    println!("Current length: {}", string_bytes.len());
 
     // Add the length in big-endian.
     string_bytes.push((string_length >> 56) as u8);
@@ -54,34 +48,25 @@ fn main() {
     string_bytes.push((string_length >> 8) as u8);
     string_bytes.push(string_length as u8);
 
-    println!("Length: {}", string_bytes.len());
-
     // Verify that the length is correct.
     assert!(string_bytes.len() % 64 == 0);
 
-    println!("We're good!");
-
     // Assume one chunk for now.
     let mut message_schedule_array: [u32; 64] = [0; 64];
+
     // Copy the string bytes into the first quarter of the array.
     for i in 0 .. 16 {
-        println!("Copying string {}", i);
-
         let word: u32 =
-            (string_bytes[i] as u32) << 24 |
-            (string_bytes[i + 1] as u32) << 16 |
-            (string_bytes[i + 2] as u32) << 8 |
-            (string_bytes[i + 3] as u32);
-
-        println!("Generated word {:x}", word);
+            (string_bytes[i * 4] as u32) << 24 |
+            (string_bytes[i * 4 + 1] as u32) << 16 |
+            (string_bytes[i * 4 + 2] as u32) << 8 |
+            (string_bytes[i * 4 + 3] as u32);
 
         message_schedule_array[i] = word;
     }
 
     // Extend the first quarter of the array to fill the rest.
     for i in 16 .. 64 {
-        println!("Extending into {}", i);
-
         let s0 = message_schedule_array[i - 15].rotate_right(7)
             ^ message_schedule_array[i - 15].rotate_right(18)
             ^ (message_schedule_array[i - 15] >> 3);
@@ -94,9 +79,9 @@ fn main() {
             .wrapping_add(s0)
             .wrapping_add(message_schedule_array[i - 7])
             .wrapping_add(s1);
-
-        println!("Generated {:x}", message_schedule_array[i]);
     }
+
+    println!("{:x?}", message_schedule_array.to_vec());
 
     let mut a = initial_hash_values[0];
     let mut b = initial_hash_values[1];
@@ -109,13 +94,11 @@ fn main() {
 
     // Do the compression!
     for i in 0 .. 64 {
-        println!("Doing round {}...", i);
-
         let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
         let ch = (e & f) ^ ((!e) & g);
-
         let temp1 = h.wrapping_add(s1).wrapping_add(ch)
             .wrapping_add(round_constants[i]).wrapping_add(message_schedule_array[i]);
+
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
         let maj = (a & b) ^ (a & c) ^ (b & c);
         let temp2 = s0.wrapping_add(maj);
@@ -130,6 +113,17 @@ fn main() {
         a = temp1.wrapping_add(temp2);
     }
 
-    println!("{:x}{:x}{:x}{:x}{:x}{:x}{:x}{:x}",
-        a.to_be(), b.to_be(), c.to_be(), d.to_be(), e.to_be(), f.to_be(), g.to_be(), h.to_be());
+
+
+    println!(
+        "{:x}{:x}{:x}{:x}{:x}{:x}{:x}{:x}",
+        (initial_hash_values[0].wrapping_add(a.to_be())),
+        (initial_hash_values[1].wrapping_add(b.to_be())),
+        (initial_hash_values[2].wrapping_add(c.to_be())),
+        (initial_hash_values[3].wrapping_add(d.to_be())),
+        (initial_hash_values[4].wrapping_add(e.to_be())),
+        (initial_hash_values[5].wrapping_add(f.to_be())),
+        (initial_hash_values[6].wrapping_add(g.to_be())),
+        (initial_hash_values[7].wrapping_add(h.to_be()))
+    );
 }

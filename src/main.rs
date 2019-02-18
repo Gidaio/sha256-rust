@@ -1,7 +1,7 @@
 fn main() {
     let test_string = String::from("The quick brown fox jumps over the lazy dog.");
 
-    let initial_hash_values: [u32; 8] = [
+    let mut initial_hash_values: [u32; 8] = [
         0x6a09e667,
         0xbb67ae85,
         0x3c6ef372,
@@ -81,8 +81,6 @@ fn main() {
             .wrapping_add(s1);
     }
 
-    println!("{:x?}", message_schedule_array.to_vec());
-
     let mut a = initial_hash_values[0];
     let mut b = initial_hash_values[1];
     let mut c = initial_hash_values[2];
@@ -102,7 +100,6 @@ fn main() {
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
         let maj = (a & b) ^ (a & c) ^ (b & c);
         let temp2 = s0.wrapping_add(maj);
-
         h = g;
         g = f;
         f = e;
@@ -113,17 +110,24 @@ fn main() {
         a = temp1.wrapping_add(temp2);
     }
 
-
+    initial_hash_values[0] = initial_hash_values[0].wrapping_add(a);
+    initial_hash_values[1] = initial_hash_values[1].wrapping_add(b);
+    initial_hash_values[2] = initial_hash_values[2].wrapping_add(c);
+    initial_hash_values[3] = initial_hash_values[3].wrapping_add(d);
+    initial_hash_values[4] = initial_hash_values[4].wrapping_add(e);
+    initial_hash_values[5] = initial_hash_values[5].wrapping_add(f);
+    initial_hash_values[6] = initial_hash_values[6].wrapping_add(g);
+    initial_hash_values[7] = initial_hash_values[7].wrapping_add(h);
 
     println!(
         "{:x}{:x}{:x}{:x}{:x}{:x}{:x}{:x}",
-        (initial_hash_values[0].wrapping_add(a.to_be())),
-        (initial_hash_values[1].wrapping_add(b.to_be())),
-        (initial_hash_values[2].wrapping_add(c.to_be())),
-        (initial_hash_values[3].wrapping_add(d.to_be())),
-        (initial_hash_values[4].wrapping_add(e.to_be())),
-        (initial_hash_values[5].wrapping_add(f.to_be())),
-        (initial_hash_values[6].wrapping_add(g.to_be())),
-        (initial_hash_values[7].wrapping_add(h.to_be()))
+        (initial_hash_values[0]),
+        (initial_hash_values[1]),
+        (initial_hash_values[2]),
+        (initial_hash_values[3]),
+        (initial_hash_values[4]),
+        (initial_hash_values[5]),
+        (initial_hash_values[6]),
+        (initial_hash_values[7])
     );
 }
